@@ -21,7 +21,7 @@ class Entity {
         this.hitbox.update(nx, ny);
         // Hvis denne instance af entity rammer NOGET på banen eller dets vægge
         if (this.hitbox.collideWorld()) {
-             // Extra gravity
+            // Extra gravity
             if (ny + this.hitbox.h > gameSession.h && this.y + this.hitbox.h < gameSession.h) {
                 this.y += 1;
             }
@@ -32,50 +32,59 @@ class Entity {
             this.updatePos(nx, ny);
         }
     }
-    
-    void gravity(float t) {
-
-    }
 }
 
 
 class Player extends Entity {
     int health = 3; // Start antal liv
-    int lastJump = 0, lastMove = 0, lastInAir;
+    int lastJump = 0, lastMove = 0, lastInAir, lastHit = 2000;
     Animation walk, idle;
     float JUMP_TIME_MS = 500;
     float IDLE_TIME_MS = 500;
-    float speed = 2; // Spillerens fart
+    float HIT_TIMER_MS = 1500;
+    float speed = 3; // Spillerens fart
+    ArrayList<PlayerSkud> skud;
     
     Player() {
-        super(width / 2, height - (200 + SPRITE_Player[0].height), 50, SPRITE_Player[0].height, 0);
+        super(width / 4, height - (200 + SPRITE_PlayerWalk[0].height), SPRITE_PlayerWalk[0].width, SPRITE_PlayerWalk[0].height, 0);
         PImage[] idleFrame = { SPRITE_Player[0] };
-        PImage[] walkFrames = { SPRITE_Player[1], SPRITE_Player[2], SPRITE_Player[3] };
-        walk = new Animation(walkFrames, false);
+        walk = new Animation(SPRITE_PlayerWalk, false);;
         idle = new Animation(idleFrame, true);
+        skud = new ArrayList<PlayerSkud>();
     }
     
     void draw() {
         if (this.isIdle()) {
-            this.idle.draw(width / 2, this.y);
+            this.idle.draw(this.x, this.y);
         } else {
-            this.walk.draw(width / 2, this.y);
+            this.walk.draw(this.x, this.y);
+        }
+        
+        for (int i = 0; i < skud.size(); i++) {
+            skud.get(i).draw();
         }
     }
-
+    
     boolean isIdle() {
-        return (millis() - this.lastMove) > IDLE_TIME_MS;
+        return(millis() - this.lastMove) > IDLE_TIME_MS;
     }
     
     void tick() {
         this.move();
         gameSession.setXOffset(this.x - width / 2);
-        println(gameSession.x_offset);
+        
+        for (int i = this.skud.size() - 1; i >= 0; i--) {
+            skud.get(i).tick();
+            
+            if (!skud.get(i).isActive) {
+                skud.remove(i);
+            }   
+        }
     }
     
     void move() {  // W = OP ; A = VENSTRE ; S = NED ; D = HØJRE ;
         boolean[] wasd = INP.getWASD();
-
+        
         boolean didMove = false;
         
         // Jump on SPACEBAR
@@ -101,7 +110,7 @@ class Player extends Entity {
         }
         // A
         if (wasd[1]) {
-            this.updatePosOffset(-this.speed, 0);
+            this.updatePosOffset( -this.speed, 0);
             this.walk.flip(true);
             didMove = true;
         }
@@ -116,57 +125,99 @@ class Player extends Entity {
             this.walk.flip(false); 
             didMove = true;
         }
-
+        
         if (didMove) {
-            this.lastMove = millis();
-            // Don't change frame mid air
-            if (!(this.lastInAir > 0)) this.walk.nFrame();
+            if ((millis() - this.lastMove) > 100) {
+                this.walk.nFrame();
+                this.lastMove = millis();
+            }
+        }
+
+        if (INP.mbLpressed()) {
+            this.shoot();
         }
     }
     
     void shoot() {
-        
+        PVector d = new PVector(mouseX - this.x, mouseY - this.y);
+        d.normalize();
+        this.skud.add(new PlayerSkud(this.x, this.y, d.x, d.y));
     } 
     
     boolean isDead() {
-        return health <= 0;
-    }
+        return health - 1 < 0;
+    }    
     
-
-    void damageTaken() {
-        if (isDead()) {
+    void takeDamage() {
+        if (isDead() || (millis() - this.lastHit) < HIT_TIMER_MS) {
             return;
         }
+        
+        lastHit = millis();
         health -= 1;
     }
 }
 
-class BossSkud extends Entity {
-    float x, y, dx, dy;
+class PlayerSkud extends Entity {
+    float dx, dy;
     boolean isActive = true;
-    float speed = 5;
+    Animation spyt;
+    float speed = 10;
     float damage = 1;
-
-
-    BossSkud(float x, float y, float dx, float dy) {
-        super(x, y, 10, 10, 1);
+    
+    
+    PlayerSkud(float x, float y, float dx, float dy) {
+        super(x, y, SKUD_spyt.width, SKUD_spyt.height, 1);
         this.dx = dx;
         this.dy = dy;
+        PImage[] dsbFrames = { SKUD_spyt };
+        this.spyt = new Animation(dsbFrames, false);
     }
-
+    
     void draw() {
-        fill(255, 0, 0);
-        ellipse(this.x, this.y, 10, 10);
+        this.spyt.draw(this.x, this.y);
     }
-
+    
     void tick() {
         this.move();
     }
-
+    
     void move() {
-        this.updatePosOffset(this.dx, this.dy);
+        this.updatePos(this.x + this.speed * this.dx, this.y + this.speed * this.dy);
         int[] bounce = this.hitbox.bounceScreen();
-        
+        if (bounce[0] < 0 || bounce[1] < 0) {
+            this.isActive = false;
+        }
+    }
+}
+
+class BossSkud extends Entity {
+    float dx, dy;
+    boolean isActive = true;
+    Animation dsb;
+    float speed = 5;
+    float damage = 1;
+    
+    
+    BossSkud(float x, float y, float dx, float dy) {
+        super(x, y, SKUD_dsb.width, SKUD_dsb.height, 1);
+        this.dx = dx;
+        this.dy = dy;
+        PImage[] dsbFrames = { SKUD_dsb };
+        this.dsb = new Animation(dsbFrames, false);
+    }
+    
+    void draw() {
+        this.dsb.draw(this.x, this.y);
+    }
+    
+    void tick() {
+        this.move();
+    }
+    
+    void move() {
+        this.updatePos(this.x + this.speed * this.dx, this.y + this.speed * this.dy);
+        int[] bounce = this.hitbox.bounceScreen();
         if (bounce[0] < 0 || bounce[1] < 0) {
             this.isActive = false;
         }
@@ -174,37 +225,58 @@ class BossSkud extends Entity {
 }
 
 class Boss extends Entity {
-    float dx = 1, dy = 1;
+    int health = 100;
+    float dx = 2, dy = 4;
     float initialTime;
-    int timeCount;
+    int timeCount, lastHit;
     int atkITNVms = 3000;
-    float antalSkud = 0, skudX = 0, skudY = 0;
-    Animation idle;
+    float antalSkud = 5, skudX = SPRITE_Boss[0].width / 2, skudY = SPRITE_Boss[0].height / 2;
+    Animation boss;
     ArrayList<BossSkud> skud;
-
-    Boss(float x, float y) {
-        super(x, y, 44, 60, 1);
+    
+    Boss() {
+        super(width - (width / 4), height - (200 + random(50, 75) + SPRITE_Boss[0].height), SPRITE_Boss[0].height, SPRITE_Boss[0].width, 1);
         this.initialTime = millis();
         this.timeCount = 0;
-        this.idle = new Animation(SPRITE_Boss, true);
+        this.boss = new Animation(SPRITE_Boss, false);
         skud = new ArrayList<BossSkud>();
     }
-
+    
     void draw() {
-        this.idle.draw(this.x, this.y);
+        this.boss.draw(this.x, this.y);
         
         for (int i = 0; i < skud.size(); i++) {
             skud.get(i).draw();
         }
     }
 
+    boolean isDead() {
+        return health - 1 < 0;
+    }
+
+    void takeDamage() {
+        if (isDead() || (millis() - this.lastHit) < 200) {
+            return;
+        }
+        
+        lastHit = millis();
+        health -= 2;
+    }
+    
     void tick() {
+        if (this.isDead()) return;
+        if (this.health < 50) { 
+            this.boss.setFrame(1); 
+            atkITNVms = 2000;
+            antalSkud = 10;
+        }
+
         this.updatePos(this.x + this.dx, this.y + this.dy);
         int[] bounce = this.hitbox.bounceScreen();
         this.dx = bounce[0] * this.dx;
         this.dy = bounce[1] * this.dy;
-        this.idle.flip(this.dy > 0 ? true : false);
-
+        this.boss.flip(this.dy > 0 ? true : false);
+        
         if (int((millis() - this.initialTime) / atkITNVms) > this.timeCount) {
             this.timeCount++;
             attack();
@@ -219,8 +291,12 @@ class Boss extends Entity {
         }
     }
     void attack() {
+        if (this.skud.size() > this.antalSkud * 2) {
+            this.skud.clear();
+        }
+
         for (int i = 0; i < this.antalSkud; ++i) {
-            float t = (i * PI / 4);
+            float t = (((i + 1)) * PI / (this.antalSkud > 7 ? 4 : 2));
             this.skud.add(new BossSkud(this.x + this.skudX, this.y + this.skudY, sin(t), cos(t)));
         }
     }
@@ -229,25 +305,35 @@ class Boss extends Entity {
 class WorldPart extends Entity {
     PImage texture;
     boolean collision = true;
-
-    WorldPart(float x, float y, float w, float h, boolean collision) {
+    boolean relative = false;
+    int min_offset = 0;
+    int max_offset = 0;
+    
+    WorldPart(float x, float y, float w, float h, boolean collision, boolean relative) {
         super(x, y, w, h, 1);
         this.collision = collision;
+        this.relative = relative;
     }
-
+    
     void addTexture(PImage img) {
         img.resize((int)this.hitbox.w,(int)this.hitbox.h);
         this.texture = img;
     }
-
+    
     void draw() {
-        fill(255, 100, 0);
-        rect(this.x, this.y, this.hitbox.w, this.hitbox.h);
+        // if (!this.relative && (this.max_offset < gameSession.x_offset || this.min_offset > gameSession.x_offset)) return;
+        
+        float x = this.relative ? this.x - gameSession.x_offset : this.x;
+        
         if (this.texture != null) {
-            image(this.texture, (this.x - gameSession.x_offset) % this.texture.width, this.y);
+            imageMode(CORNER);
+            image(this.texture, x, this.y);
+        } else {
+            fill(255, 100, 0);
+            rect(x, this.y, this.hitbox.w, this.hitbox.h);
         }
     }
-
+    
     void tick() {
         this.updatePos(this.x, this.y);
     }

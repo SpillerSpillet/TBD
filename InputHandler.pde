@@ -1,5 +1,3 @@
-import java.util.Map;
-
 class InputHandler {
     HashMap<String,Boolean> inputMap = new HashMap<String,Boolean>();
 

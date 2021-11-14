@@ -1,5 +1,3 @@
-import processing.sound.*;
-
 class MusicTrack extends SoundFile {
     float lastPlayedAt;
     boolean reset;
@@ -25,6 +23,10 @@ class MusicTrack extends SoundFile {
 
     void tick() {
         if (!this.loop) return;
+         
+        
+        float dB = (float)(gameMenu.sMusic.getValue() + 100)/200;
+        this.amp(dB);
 
         if (this.reset) {
             this.playOnce();

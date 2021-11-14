@@ -64,6 +64,10 @@ class Animation {
   boolean isDone() {
       return this.iterations > 0 ? true : false;
   }
+
+  void setFrame(int frame) {
+      this.frame = frame;
+  }
   
   PImage getFrame() {
     return images[frame];

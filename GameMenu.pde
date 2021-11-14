@@ -11,13 +11,13 @@ class cSlider {
         this.text = text;
         this.sliderX = x;
     }
-
+    
     void marker() {
         if (INP.mbLpressed() && mouseX >= sliderX + 960 - 15 && mouseX <= sliderX + 960 + 15 && mouseY >= barY + 540 - 15 && mouseY <= barY + 540 + 15) {
-            sliderX = mouseX - width/2;
-            if (barX <= -barW / 2) {
+            sliderX = mouseX - width / 2;
+            if (sliderX <= -barW / 2) {
                 sliderX = -barW / 2;
-            } else if (barX >= barW / 2) {
+            } else if (sliderX >= barW / 2) {
                 sliderX = barW / 2;
             }
         }
@@ -34,48 +34,111 @@ class cSlider {
         fill(255, 0, 0);
         ellipse(sliderX, barY, 30, 30);
     }
-
+    
     int getValue() {
-        return (int) (sliderX - barX);
+        return(int)(sliderX - barX);
     }
-
+    
     void setValue(int value) {
         sliderX = barX + value;
     }
 }
 
 class cButton {
-    cButton() {
-        
-    }
-}
-
-class cTextureButton extends cButton {
+    float x, y, w, h;
+    String text;
     PImage texture;
+    PImage onhover;
+
+    cButton(float x, float y, float w, float h, String text) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = text;
+    }
+
+    cButton(float x, float y, float w, float h, PImage texture) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = "";
+        this.addTexture(texture);
+    }
+
+    cButton(float x, float y, float w, float h, PImage texture, PImage onhover) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = "";
+        this.addTexture(texture, onhover);
+    }
+
+    void draw() {
+        pushMatrix();
+        if (this.isPressed()) {
+            fill(69, 69, 69);
+        } else {
+            fill(255);
+        }
+        rectMode(CENTER);
+        imageMode(CENTER);
+        rect(x, y, w, h);
+        if (this.texture != null) {
+            noSmooth();
+            image(this.onhover != null && this.isPressed() ? this.onhover : this.texture, x, y, w, h);
+        } else {
+            fill(0);
+            textAlign(CENTER);
+            textSize(24);
+            text(this.text, x, y + h / 3 - 10);
+        }
+
+        popMatrix();
+    }
     
-    cTextureButton(PImage texture) {
+    void addTexture(PImage texture) {
+        texture.resize((int)w, (int)h);
         this.texture = texture;
+    }
+
+    void addTexture(PImage texture, PImage onhover) {
+        texture.resize((int)w, (int)h);
+        this.texture = texture;
+        onhover.resize((int)w, (int)h);
+        this.onhover = onhover;
+    }
+
+    boolean isPressed() {
+        return mouseX >= x - this.w / 2 && mouseX <= x + w / 2 && mouseY >= y - this.h / 2 && mouseY <= y + h / 2;
     }
 }
 
 class GameMenu {
     boolean menuPressed = false;
     float eBX, eBY, eBW, eBH, rBX, rBY, rBW, rBH;
-    float soundDb;
-    int barW = 200, barH = 20;
     cSlider sSound, sMusic;
-    float soundX, musicX, soundY, musicY;
-
+    cButton bMenu, bResume, bExit, bStart;
+    
     GameMenu() {
-        sSound = new cSlider(0, 0, 0, 0, "Sound");
-        sMusic = new cSlider(0, 60, 0, 60, "Music");
+        sSound = new cSlider(0, 0, 200, 20, "Sound");
+        sMusic = new cSlider(0, 60, 200, 20, "Music");
+        bMenu = new cButton(1890, 30, 50, 50, "||");
+        bResume = new cButton(width / 2, height / 3, 200, 50, BUTTON_ResumeBright, BUTTON_ResumeDark);
+        bExit = new cButton(width / 2, height / 3 + 400, 200, 50, BUTTON_ExitBright, BUTTON_ExitDark);
+        bStart = new cButton(width / 2, height / 2, 300, 75, BUTTON_StartBright, BUTTON_StartDark);
     }
     
     void draw() {
+        pushMatrix();
+        rectMode(CENTER);
         // Menuknappen i opper højre hjørne
-        rect(1890, 30, 50, 50);
-
-        if (menuPressed == true) {
+        bMenu.draw();
+        
+        if (INP.mbLpressed() && bMenu.isPressed() || gamePause) {
+            gamePause = true;
             fill(60, 60, 60, 20);
             rect(width / 2, height / 2, width, height);
             
@@ -86,123 +149,52 @@ class GameMenu {
             sSound.draw();
             // Musik baren og dens skyder
             sMusic.draw();
-
-            sSound.marker();
-            sMusic.marker();
-            restart();
-            popMatrix();
-            resume();
             
-            leave();
-        }
-    }
-    
+            sSound.marker();
+            sMusic.marker();;
+            popMatrix();
 
-    void menu() {
-        pushMatrix();
-        rectMode(CENTER);
-        if (mouseX >= 1890 - 25 && mouseX <= 1890 + 25 && mouseY >= 30 - 25 && mouseY <= 30 + 25) {
-            fill(69, 69, 69);
-        } else {
-            fill(255, 255, 255);
+            bResume.draw();
+            bExit.draw();
+
+            if (INP.mbLpressed() && bResume.isPressed()) {
+                gamePause = false;
+            }
+
+            if (INP.mbLpressed() && bExit.isPressed()) {
+                exit();
+            }
         }
-        if (INP.mbLpressed() && mouseX >= 1890 - 25 && mouseX <= 1890 + 25 && mouseY >= 30 - 25 && mouseY <= 30 + 25) {
-            menuPressed = true;
-            gamePause = true;
-        }
-        this.draw();
         popMatrix();
     }
     
-    void resume() {
-        textAlign(CENTER);
-        textSize(64);
-        rBX = width / 2;
-        rBY = width / 3 - 200;
-        rBW = 250;
-        rBH = 100;
-        if (mouseX >= rBX - eBW / 2 && mouseX <= rBX + rBW / 2 && mouseY >= rBY - 50 && mouseY <= rBY + 50) {
-            fill(69, 69, 69);
-            rect(rBX, rBY, rBW, rBH);
-            if (INP.mbLpressed()) {
-                menuPressed = false;
-                gamePause = false;
-            }
-        } else {
-            fill(255);
-            rect(rBX, rBY, rBW, rBH);
-        }
-        fill(0);
-        text("RESUME", rBX, rBY + rBH / 3 - 10);
-    }
-    
-    void restart() {
-        rect(rBX, rBY + 200, eBW, eBH);   
-        if (mouseX >= rBX - eBW / 2 && mouseX <= rBX + eBW / 2 && mouseY >= rBY + 200 - eBH / 2 && mouseY <= rBY + 200 + eBH / 2) {
-            fill(69, 69, 100);
-            sSound = new cSlider(0, 0, 0, 0, "Sound");
-            sMusic = new cSlider(0, 60, 0, 60, "Music");
-
-        } else {
-            fill(69, 69, 69);
-        }
-        
-    }
-    
-    void leave() {
-        textSize(80);
-        eBX = width / 2;
-        eBY = width / 3 + 200;
-        eBW = 250;
-        eBH = 100;
-        if (mouseX >= eBX - eBW / 2 && mouseX <=  eBX + eBW / 2 && mouseY >= eBY - 50 && mouseY <= eBY + 50) {
-            fill(69, 69, 69);
-            rect(eBX, eBY, eBW, eBH);
-            if (INP.mbLpressed()) {
-                exit();
-            }
-        } else {
-            fill(255);
-            rect(eBX, eBY, eBW, eBH);
-        }
-        fill(0);
-        text("EXIT", eBX, eBY + eBH / 3 - 5);
-    }
-    
     void startMenu() {
-        int SGButtonX = width / 2, SGButtonY = height / 2, SGButtonW = 300, SGButtonH = 75;
-        
-        // start knappen
-        rectMode(CENTER);
-        textAlign(CENTER);
-        if (mouseX >= SGButtonX - SGButtonW / 2 && mouseX <=  SGButtonX + SGButtonW / 2 && mouseY >= SGButtonY - SGButtonH / 2 && mouseY <= SGButtonY + SGButtonH / 2) {
-            fill(69,69, 69);
-            rect(SGButtonX, SGButtonY, SGButtonW, SGButtonH);
-            if (INP.mbLpressed()) {
-                startGame = true;
-            }
-        } else{
-            fill(255);
-            rect(SGButtonX, SGButtonY + 300, SGButtonW, SGButtonH);
+        bStart.draw();
+
+        imageMode(CENTER);
+        image(IMG_logo, width / 2 - 100, height / 2 - IMG_logo.height);
+        imageMode(CORNER);
+
+        if (INP.mbLpressed() && bStart.isPressed()) {
+            startGame = true;
         }
-        fill(0);
-        textSize(32);
-        text("PRESS TO START", SGButtonX, SGButtonY + 10);
         
-        // Exit Knappen
-        if (mouseX >= SGButtonX - SGButtonW / 2 && mouseX <=  SGButtonX + SGButtonW / 2 && mouseY >= SGButtonY + 300 - SGButtonH / 2 && mouseY <= SGButtonY + 300 + SGButtonH / 2) {
-            
-            fill(69,69, 69);
-            rect(SGButtonX, SGButtonY + 300, SGButtonW, SGButtonH);
-            if (INP.mbLpressed()) {
-                exit();
-            }
-        } else{
-            fill(255);
-            rect(SGButtonX, SGButtonY + 300, SGButtonW, SGButtonH);
+        bExit.draw();
+
+        if (INP.mbLpressed() && bExit.isPressed()) {
+            exit();
         }
-        fill(0);
-        textSize(48);
-        text("Exit", SGButtonX, SGButtonY + 315);
+    }
+
+    void gameOver(boolean win) {
+        music.startTrack("intro");
+        imageMode(CENTER);
+        image(win ? IMG_Win : IMG_Loss, width / 2, height / 2);
+
+        bExit.draw();
+
+        if (INP.mbLpressed() && bExit.isPressed()) {
+            exit();
+        }
     }
 }
